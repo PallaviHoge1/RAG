@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+# Indexes & cache
+index/
+.cache/
+# OS
+.DS_Store
+Thumbs.db

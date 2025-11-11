@@ -1,48 +1,75 @@
 import os, re, json
 from pathlib import Path
-import fitz  # PyMuPDF
 import yaml
 from typing import List, Dict
+
+# Optional PyMuPDF (fast, best layout) -> fallback to pypdf (pure Python)
+_USE_PYMUPDF = True
+try:
+    import fitz  # PyMuPDF
+except Exception:
+    _USE_PYMUPDF = False
+    from pypdf import PdfReader
 
 def load_config():
     with open(Path(__file__).resolve().parents[1] / "config.yaml", "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-def extract_text_with_metadata(pdf_path: Path) -> List[Dict]:
+def _extract_with_pymupdf(pdf_path: Path) -> List[Dict]:
     doc = fitz.open(pdf_path)
     chunks = []
     for page_num in range(len(doc)):
         page = doc[page_num]
         text = page.get_text("text")
-        # basic cleanup
-        text = re.sub(r'\s+\n', '\n', text).strip()
+        text = re.sub(r"\s+\n", "\n", text).strip()
         chunks.append({
             "paper_id": pdf_path.stem,
             "page": page_num + 1,
-            "section": "",  # optional: infer from headings if needed
+            "section": "",
             "text": text
         })
     doc.close()
     return chunks
 
-def token_estimate(s: str) -> int:
-    # rough token estimate for chunking without tokenizer deps
-    return max(1, len(s.split()) // 0.75)
+def _extract_with_pypdf(pdf_path: Path) -> List[Dict]:
+    reader = PdfReader(str(pdf_path))
+    chunks = []
+    for i, page in enumerate(reader.pages, start=1):
+        text = page.extract_text() or ""
+        text = re.sub(r"\s+\n", "\n", text).strip()
+        chunks.append({
+            "paper_id": pdf_path.stem,
+            "page": i,
+            "section": "",
+            "text": text
+        })
+    return chunks
+
+def extract_text_with_metadata(pdf_path: Path) -> List[Dict]:
+    if _USE_PYMUPDF:
+        try:
+            return _extract_with_pymupdf(pdf_path)
+        except Exception:
+            # fallback if runtime DLLs are missing
+            return _extract_with_pypdf(pdf_path)
+    else:
+        return _extract_with_pypdf(pdf_path)  # this calls pypdf version above
 
 def split_into_chunks(pages: List[Dict], chunk_tokens=500, overlap=100) -> List[Dict]:
     out = []
     for p in pages:
         words = p["text"].split()
-        step = chunk_tokens - overlap
+        step = max(1, chunk_tokens - overlap)
         i = 0
         while i < len(words):
             piece = " ".join(words[i:i+chunk_tokens])
-            out.append({
-                "paper_id": p["paper_id"],
-                "page": p["page"],
-                "section": p.get("section",""),
-                "text": piece
-            })
+            if piece.strip():
+                out.append({
+                    "paper_id": p["paper_id"],
+                    "page": p["page"],
+                    "section": p.get("section",""),
+                    "text": piece
+                })
             i += step
     return out
 
