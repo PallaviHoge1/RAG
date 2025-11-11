@@ -1,35 +1,154 @@
-## 🧠 RAG-QA on AI Research Papers (Local & Offline)
+# RAG-QA on AI Research Papers (Offline)
 
-**Description:**
-This project implements a **Retrieval-Augmented Generation (RAG)** system for **question answering on AI research papers**, fully offline and privacy-friendly.
-It allows users to ask natural-language questions and get **accurate, context-aware answers** directly sourced from a small collection of research PDFs such as *Transformers*, *RAG*, and *GPT-3* papers.
+## Overview
 
-The system is designed to run entirely **on local hardware (CPU/iGPU)** with **no API keys or paid LLM access** — powered by **Ollama**, **FAISS**, and **Sentence-Transformers**.
+This project implements a Retrieval-Augmented Generation (RAG) system for question answering on AI research papers. It allows users to ask questions and receive accurate, context-based answers directly sourced from a collection of academic PDFs such as "Attention Is All You Need", "Retrieval-Augmented Generation", and "Language Models are Few-Shot Learners (GPT-3)".
 
----
+The entire system runs fully offline, without using any API keys or paid LLM services, making it suitable for local machines and privacy-preserving research workflows.
 
-### 🚀 Features
+## Key Features
 
-* 📄 **PDF ingestion & preprocessing:** Extracts and cleans text from AI research papers.
-* 🧩 **Text chunking & vectorization:** Splits documents into semantically meaningful segments and embeds them locally.
-* 🔍 **Efficient retrieval:** Uses FAISS for vector similarity search and optional reranking via Sentence-Transformers.
-* 🤖 **Local LLM generation:** Generates grounded answers using `llama3.2:3b-instruct` (Ollama).
-* 📚 **Source attribution:** Each answer includes citations from the original papers for transparency.
-* 💻 **Runs 100% offline:** No OpenAI, API keys, or external services required.
+* PDF preprocessing: automatically extracts and cleans text from research papers.
+* Chunking & embedding: splits documents into overlapping chunks and generates local embeddings.
+* Efficient retrieval: uses FAISS for semantic vector search and a cross-encoder for reranking.
+* Local answer generation: employs the `llama3.2:3b` model from Ollama to generate concise, grounded answers.
+* Source attribution: each generated answer includes references to the original paper sections or pages.
+* Runs 100% offline: no cloud dependency or external API usage.
 
----
+## Tech Stack
 
-### 🧩 Tech Stack
+| Component       | Tool / Library                         | Purpose                                                |
+| --------------- | -------------------------------------- | ------------------------------------------------------ |
+| LLM             | `llama3.2:3b` (Ollama)                 | Generates final grounded answers                       |
+| Embeddings      | `nomic-embed-text` (Ollama)            | Converts text chunks into dense vectors                |
+| Retriever       | FAISS                                  | Finds semantically similar document chunks             |
+| Reranker        | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Reranks top retrieved results based on query relevance |
+| Text extraction | PyMuPDF / PyPDF                        | Reads and cleans text from PDFs                        |
+| Environment     | Python 3.11 (16 GB RAM, CPU/iGPU)      | Offline environment setup                              |
 
-* **LLM:** `llama3.2:3b-instruct` (via Ollama)
-* **Embeddings:** `nomic-embed-text` or `bge-small-en-v1.5`
-* **Retriever:** FAISS (vector index)
-* **Reranker:** `cross-encoder/ms-marco-MiniLM-L-6-v2` (CPU-friendly)
-* **Frameworks:** Python, LangChain, PyMuPDF, Sentence-Transformers
+## Project Structure
 
----
+```
+rag_qa/
+├── data/                # Folder for PDF research papers
+├── index/               # Stores vector index and metadata
+├── src/
+│   ├── ingest.py        # Extracts and chunks PDF text
+│   ├── embed_index.py   # Generates embeddings and builds FAISS index
+│   ├── retrieve.py      # Retrieves and reranks relevant passages
+│   ├── generate.py      # Generates answers using local LLM
+│   └── app_cli.py       # CLI interface for querying the system
+├── config.yaml          # Configuration file for models and parameters
+├── requirements.txt     # Dependencies
+└── README.md
+```
 
-### 📊 Example Questions
+## Installation
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/yourusername/rag_qa.git
+cd rag_qa
+```
+
+### 2. Create virtual environment
+
+```bash
+python -m venv .venv
+# Activate on Windows (PowerShell)
+.\.venv\Scripts\Activate.ps1
+# Activate on Linux/Mac
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Pull required Ollama models
+
+```bash
+ollama pull llama3.2:3b
+ollama pull nomic-embed-text
+```
+
+## Configuration
+
+Edit the `config.yaml` file to adjust parameters such as chunk size, overlap, top_k, and rerank model.
+
+Example:
+
+```yaml
+models:
+  llm: "llama3.2:3b"
+  embedding: "nomic-embed-text"
+  reranker: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+chunking:
+  chunk_tokens: 500
+  chunk_overlap: 100
+
+retrieval:
+  top_k: 8
+  rerank_top_k: 4
+```
+
+## Usage
+
+### Step 1: Add research papers
+
+Place your PDF research papers inside the `data/` folder.
+
+Example files:
+
+```
+data/
+├── 1706.03762v7.pdf       # Attention Is All You Need
+├── 2005.11401v4.pdf       # Retrieval-Augmented Generation
+├── 2005.14165v4.pdf       # GPT-3 Few-Shot Learning
+```
+
+### Step 2: Preprocess PDFs
+
+Extract and chunk text:
+
+```bash
+python src/ingest.py
+```
+
+This will generate `index/chunks.jsonl`.
+
+### Step 3: Embed and build index
+
+Generate embeddings and build a FAISS vector index:
+
+```bash
+python src/embed_index.py
+```
+
+The embeddings and index files will be stored in `index/`.
+
+### Step 4: Run the question answering CLI
+
+Launch the interactive CLI:
+
+```bash
+python src/app_cli.py
+```
+
+Example interaction:
+
+```
+RAG QA (Local & Offline). Type your question, or 'exit' to quit.
+> What are the two sub-layers in each encoder layer of the Transformer model?
+=== Answer ===
+Each encoder layer consists of a multi-head self-attention mechanism followed by a feed-forward neural network. [Transformer p.5]
+```
+
+## Example Questions
 
 1. What are the main components of a RAG model and how do they interact?
 2. What are the two sub-layers in each encoder layer of the Transformer model?
@@ -37,51 +156,36 @@ The system is designed to run entirely **on local hardware (CPU/iGPU)** with **n
 4. Describe the concept of multi-head attention and its benefits.
 5. What is few-shot learning and how does GPT-3 implement it during inference?
 
----
+## Evaluation
 
-### 🏗️ Project Structure
+Evaluation can be done by:
 
-```
-rag_qa/
-├── data/                # PDF files (research papers)
-├── index/               # Vector index storage
-├── src/
-│   ├── ingest.py        # PDF loading, cleaning, chunking
-│   ├── embed_index.py   # Embedding + FAISS index creation
-│   ├── retrieve.py      # Search & rerank
-│   ├── generate.py      # Answer generation using Ollama
-│   └── app_cli.py       # CLI interface for asking questions
-├── config.yaml          # Model paths, chunk size, and top-k settings
-└── README.md
-```
+* Comparing generated answers with the original paper text.
+* Checking citation accuracy (paper name and page reference).
+* Measuring retrieval quality using similarity scores.
 
----
+## Future Enhancements
 
-### ⚡ How It Works
+* Add Streamlit/Gradio web interface for better interactivity.
+* Integrate OCR (Tesseract) for scanned PDFs.
+* Include answer confidence scoring.
+* Optimize retrieval pipeline with hybrid search (semantic + keyword).
+* Support more embedding models for experimentation.
 
-1. Load and preprocess 3–4 research papers (e.g., Transformer, RAG, GPT-3).
-2. Split text into overlapping chunks and embed them using local models.
-3. Store embeddings in a FAISS vector index.
-4. Retrieve top-k relevant passages for each user query.
-5. Generate grounded answers via Llama-3.2 and show citation references.
+## System Requirements
 
----
+| Component      | Minimum Requirement          |
+| -------------- | ---------------------------- |
+| RAM            | 8–16 GB                      |
+| Disk Space     | ~4 GB for models and indexes |
+| CPU            | Intel i5 or equivalent       |
+| GPU (optional) | Integrated GPU works fine    |
+| OS             | Windows / Linux / macOS      |
+| Ollama         | v0.3.0 or later              |
 
-### 🧰 Installation
+## Credits
 
-```bash
-pip install pymupdf faiss-cpu sentence-transformers langchain-core
-ollama pull llama3.2:3b-instruct
-ollama pull nomic-embed-text
-```
-
----
-
-### 💡 Future Enhancements
-
-* Web UI with Streamlit or Gradio
-* Evaluation metrics for retrieval and answer quality
-* Multi-document reranking
-* Citation highlighting in generated answers
-
----
+* Meta (Llama 3.2) for open-source LLMs.
+* Research papers used as data sources.
+* Sentence-Transformers team for reranker models.
+* PyMuPDF & FAISS contributors for PDF processing and vector indexing.
